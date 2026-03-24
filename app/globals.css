@@ -1,26 +1,253 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0908;
+  --foreground: #e8e4dc;
+  --card: #12100e;
+  --card-foreground: #e8e4dc;
+  --primary: #c9a962;
+  --primary-foreground: #0a0908;
+  --secondary: #8b1538;
+  --secondary-foreground: #e8e4dc;
+  --muted: #1a1815;
+  --muted-foreground: #8a8377;
+  --accent: #c9a962;
+  --accent-foreground: #0a0908;
+  --border: #2a2520;
+  --ring: #c9a962;
+  --radius: 0.5rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --font-sans: 'Cinzel', serif;
+  --font-serif: 'Cinzel Decorative', serif;
+  --font-mono: 'Fira Code', monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), serif;
+}
+
+/* Gothic ornamental patterns */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { 
+    filter: drop-shadow(0 0 8px rgba(201, 169, 98, 0.4));
+    opacity: 0.8;
+  }
+  50% { 
+    filter: drop-shadow(0 0 20px rgba(201, 169, 98, 0.8));
+    opacity: 1;
+  }
+}
+
+@keyframes magic-circle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes magic-circle-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes rune-glow {
+  0%, 100% { 
+    text-shadow: 0 0 10px rgba(139, 21, 56, 0.5), 0 0 20px rgba(139, 21, 56, 0.3);
+  }
+  50% { 
+    text-shadow: 0 0 20px rgba(139, 21, 56, 0.8), 0 0 40px rgba(139, 21, 56, 0.5), 0 0 60px rgba(139, 21, 56, 0.3);
+  }
+}
+
+@keyframes summon-flash {
+  0% { 
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  10% {
+    opacity: 1;
+    background: radial-gradient(circle, rgba(201, 169, 98, 0.3) 0%, transparent 70%);
+  }
+  30% {
+    background: radial-gradient(circle, rgba(139, 21, 56, 0.5) 0%, transparent 70%);
+  }
+  100% { 
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes reveal-monster {
+  0% {
+    opacity: 0;
+    transform: translateY(50px) scale(0.5);
+    filter: blur(20px);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translateY(20px) scale(0.8);
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes stat-fill {
+  from { width: 0; }
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) translateX(var(--x-drift, 20px)) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes book-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px rgba(201, 169, 98, 0.2),
+      inset 0 0 30px rgba(201, 169, 98, 0.05);
+  }
+  50% {
+    box-shadow: 
+      0 0 40px rgba(201, 169, 98, 0.4),
+      inset 0 0 50px rgba(201, 169, 98, 0.1);
+  }
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    border-color: rgba(201, 169, 98, 0.3);
+  }
+  50% {
+    border-color: rgba(201, 169, 98, 0.6);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-magic-spin {
+  animation: magic-circle-spin 20s linear infinite;
+}
+
+.animate-magic-reverse {
+  animation: magic-circle-reverse 15s linear infinite;
+}
+
+.animate-rune-glow {
+  animation: rune-glow 2s ease-in-out infinite;
+}
+
+.animate-reveal-monster {
+  animation: reveal-monster 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-stat-fill {
+  animation: stat-fill 1s ease-out forwards;
+}
+
+.animate-book-glow {
+  animation: book-glow 3s ease-in-out infinite;
+}
+
+.animate-border-glow {
+  animation: border-glow 2s ease-in-out infinite;
+}
+
+/* Ornamental corner decorations */
+.gothic-corner::before,
+.gothic-corner::after {
+  content: '';
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--primary);
+  opacity: 0.5;
+}
+
+.gothic-corner::before {
+  top: 0;
+  left: 0;
+  border-right: none;
+  border-bottom: none;
+}
+
+.gothic-corner::after {
+  bottom: 0;
+  right: 0;
+  border-left: none;
+  border-top: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Text shadows for gothic feel */
+.text-shadow-gold {
+  text-shadow: 
+    0 0 10px rgba(201, 169, 98, 0.5),
+    0 0 20px rgba(201, 169, 98, 0.3),
+    0 0 30px rgba(201, 169, 98, 0.2);
+}
+
+.text-shadow-crimson {
+  text-shadow: 
+    0 0 10px rgba(139, 21, 56, 0.5),
+    0 0 20px rgba(139, 21, 56, 0.3);
 }
