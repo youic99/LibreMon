@@ -147,7 +147,7 @@ function SummonParticles({ active }: { active: boolean }) {
             left: `${10 + (i * 4)}%`,
             animation: `particle-float 2s ease-out forwards`,
             animationDelay: `${i * 0.1}s`,
-            ['--x-drift' as string]: `${(Math.random() - 0.5) * 60}px`,
+            ['--x-drift' as string]: `${((i * 37) % 60) - 30}px`,
           }}
         />
       ))}
