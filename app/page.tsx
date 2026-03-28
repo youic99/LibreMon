@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useCallback, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** DiceBear HTTP API: same title → same avatar (deterministic). */
 function libreMonAvatarUrl(bookTitle: string) {
@@ -414,6 +414,8 @@ export default function Home() {
   const [stats, setStats] = useState<MonsterStats | null>(null);
   const [showAnimation, setShowAnimation] = useState(false);
   const [summoningPhase, setSummoningPhase] = useState<'idle' | 'summoning' | 'complete'>('idle');
+  const [catalogToast, setCatalogToast] = useState<string | null>(null);
+  const catalogToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cleanIsbn = useMemo(() => normalizeIsbn(isbnInput), [isbnInput]);
   const isValidIsbn = cleanIsbn.length === 13;
@@ -425,6 +427,11 @@ export default function Home() {
     setStats(null);
     setShowAnimation(false);
     setSummoningPhase('idle');
+    setCatalogToast(null);
+    if (catalogToastTimer.current) {
+      clearTimeout(catalogToastTimer.current);
+      catalogToastTimer.current = null;
+    }
 
     if (!isValidIsbn) {
       setError("ISBNコードは13桁で入力してください。");
@@ -444,15 +451,38 @@ export default function Home() {
       }
 
       const parsed = (await response.json()) as BookData;
-      
+
       // Add dramatic delay for effect
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const monsterStats = createStats(cleanIsbn, parsed);
+      const imageUrl = libreMonAvatarUrl(parsed.title);
+
       setBook(parsed);
-      setStats(createStats(cleanIsbn, parsed));
-      setSummoningPhase('complete');
+      setStats(monsterStats);
+      setSummoningPhase("complete");
       setShowAnimation(true);
-      
+
+      const saveRes = await fetch("/api/ribremons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: parsed.title,
+          isbn: cleanIsbn,
+          image_url: imageUrl,
+          stats: monsterStats,
+        }),
+      });
+
+      if (saveRes.ok) {
+        setCatalogToast("図鑑に登録されました！");
+        if (catalogToastTimer.current) clearTimeout(catalogToastTimer.current);
+        catalogToastTimer.current = setTimeout(() => {
+          setCatalogToast(null);
+          catalogToastTimer.current = null;
+        }, 4500);
+      }
+
       // Reset animation flag after animation completes
       setTimeout(() => setShowAnimation(false), 1500);
     } catch (caught) {
@@ -462,6 +492,12 @@ export default function Home() {
       setLoading(false);
     }
   }, [cleanIsbn, isValidIsbn]);
+
+  useEffect(() => {
+    return () => {
+      if (catalogToastTimer.current) clearTimeout(catalogToastTimer.current);
+    };
+  }, []);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background">
@@ -483,6 +519,15 @@ export default function Home() {
           <MagicCircle className="h-80 w-80 text-secondary" reverse />
         </div>
       </div>
+
+      {catalogToast && (
+        <div
+          role="status"
+          className="fixed left-1/2 top-4 z-[100] max-w-md -translate-x-1/2 rounded-lg border border-primary/50 bg-card/95 px-6 py-3 text-center font-sans text-sm font-medium tracking-wide text-foreground shadow-[0_0_24px_rgba(201,169,98,0.25)] backdrop-blur"
+        >
+          {catalogToast}
+        </div>
+      )}
 
       <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 md:gap-12 md:px-6 md:py-16">
         {/* Header with Logo */}
