@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createSupabaseBrowserClient, signInWithEmail, signOut as supabaseSignOut, signInAnonymously } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 /** DiceBear HTTP API: same title → same avatar (deterministic). */
 function libreMonAvatarUrl(bookTitle: string) {
@@ -417,6 +419,10 @@ export default function Home() {
   const [catalogToast, setCatalogToast] = useState<string | null>(null);
   const catalogToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 認証関連の状態
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const cleanIsbn = useMemo(() => normalizeIsbn(isbnInput), [isbnInput]);
   const isValidIsbn = cleanIsbn.length === 13;
 
@@ -463,6 +469,7 @@ export default function Home() {
       setSummoningPhase("complete");
       setShowAnimation(true);
 
+      const { data: { session } } = await createSupabaseBrowserClient().auth.getSession();
       const saveRes = await fetch("/api/ribremons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -471,6 +478,8 @@ export default function Home() {
           isbn: cleanIsbn,
           image_url: imageUrl,
           stats: monsterStats,
+          access_token: session?.access_token ?? null,
+          refresh_token: session?.refresh_token ?? null,
         }),
       });
 
@@ -492,6 +501,76 @@ export default function Home() {
       setLoading(false);
     }
   }, [cleanIsbn, isValidIsbn]);
+
+  // 認証状態の監視
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    
+    // 初期状態の取得
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    };
+    
+    getInitialSession();
+
+    // 認証状態の変更を監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ログイン処理
+  const handleSignIn = useCallback(async (email: string, password: string) => {
+    try {
+      const { error } = await signInWithEmail(email, password);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      alert(error instanceof Error ? error.message : 'ログインに失敗しました');
+    }
+  }, []);
+
+  // サインアップ処理
+  const handleSignUp = useCallback(async (email: string, password: string) => {
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      alert('アカウントを作成しました。必要であればメールを確認してください。');
+    } catch (error) {
+      console.error('Sign up error:', error);
+      alert(error instanceof Error ? error.message : 'サインアップに失敗しました');
+    }
+  }, []);
+
+  // ゲストログイン処理
+  const handleGuestSignIn = useCallback(async () => {
+    try {
+      const { error } = await signInAnonymously();
+      if (error) throw error;
+      alert('ゲストとしてログインしました');
+    } catch (error) {
+      console.error('Guest sign in error:', error);
+      alert('ゲストログインに失敗しました');
+    }
+  }, []);
+
+  // ログアウト処理
+  const handleSignOut = useCallback(async () => {
+    try {
+      const { error } = await supabaseSignOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -533,6 +612,54 @@ export default function Home() {
         {/* Header with Logo */}
         <header className="flex flex-col items-center pt-8">
           <LibreMonLogo />
+          
+          {/* 認証UI */}
+          <div className="mt-6 flex items-center gap-4">
+            {authLoading ? (
+              <div className="font-sans text-xs tracking-[0.3em] text-muted-foreground">LOADING...</div>
+            ) : user ? (
+              <div className="flex items-center gap-4">
+                <div className="font-sans text-xs tracking-[0.3em] text-muted-foreground">
+                  WELCOME, {user.email?.includes('guest_') ? 'GUEST' : user.email?.split('@')[0].toUpperCase()}
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="rounded border border-primary/50 bg-background px-4 py-2 font-sans text-xs tracking-[0.3em] text-primary hover:border-primary hover:text-shadow-gold"
+                >
+                  LOGOUT
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => {
+                    const email = prompt('Email:');
+                    const password = prompt('Password:');
+                    if (email && password) handleSignIn(email, password);
+                  }}
+                  className="rounded border border-primary/50 bg-background px-4 py-2 font-sans text-xs tracking-[0.3em] text-primary hover:border-primary hover:text-shadow-gold"
+                >
+                  LOGIN
+                </button>
+                <button
+                  onClick={() => {
+                    const email = prompt('Email:');
+                    const password = prompt('Password:');
+                    if (email && password) handleSignUp(email, password);
+                  }}
+                  className="rounded border border-primary/50 bg-background px-4 py-2 font-sans text-xs tracking-[0.3em] text-primary hover:border-primary hover:text-shadow-gold"
+                >
+                  SIGN UP
+                </button>
+                <button
+                  onClick={handleGuestSignIn}
+                  className="rounded border border-secondary/50 bg-background px-4 py-2 font-sans text-xs tracking-[0.3em] text-secondary hover:border-secondary hover:text-shadow-gold"
+                >
+                  GUEST LOGIN
+                </button>
+              </div>
+            )}
+          </div>
           
           <p className="mt-8 max-w-lg text-center font-sans text-sm leading-relaxed text-muted-foreground md:text-base">
             禁断の書物に刻まれしISBNコードを解読し、古の魔物を現世に召喚せよ。
