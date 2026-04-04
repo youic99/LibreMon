@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createSupabaseBrowserClient, signInWithEmail, signOut as supabaseSignOut, signInAnonymously } from "@/lib/supabase/client";
+import { createSupabaseBrowserClient, signInWithEmail, signUpWithEmail, signOut as supabaseSignOut, signInAnonymously } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 /** DiceBear HTTP API: same title → same avatar (deterministic). */
@@ -540,8 +540,13 @@ export default function Home() {
   // サインアップ処理
   const handleSignUp = useCallback(async (email: string, password: string) => {
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signUp({ email, password });
+      const userName = prompt('Name:');
+      if (!userName) {
+        alert('名前を入力してください');
+        return;
+      }
+
+      const { error } = await signUpWithEmail(email, password, userName);
       if (error) throw error;
       alert('アカウントを作成しました。必要であればメールを確認してください。');
     } catch (error) {
@@ -620,7 +625,7 @@ export default function Home() {
             ) : user ? (
               <div className="flex items-center gap-4">
                 <div className="font-sans text-xs tracking-[0.3em] text-muted-foreground">
-                  WELCOME, {user.email?.includes('guest_') ? 'GUEST' : user.email?.split('@')[0].toUpperCase()}
+                  WELCOME, {user.user_metadata?.user_name ? user.user_metadata.user_name.toString() : user.email?.includes('guest_') ? 'GUEST' : user.email?.split('@')[0].toUpperCase()}
                 </div>
                 <button
                   onClick={handleSignOut}

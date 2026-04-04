@@ -27,6 +27,20 @@ export async function signInWithEmail(email: string, password: string) {
   return supabase.auth.signInWithPassword({ email, password });
 }
 
+// メール/パスワードでサインアップ
+export async function signUpWithEmail(email: string, password: string, userName: string) {
+  const supabase = createSupabaseBrowserClient();
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        user_name: userName,
+      },
+    },
+  });
+}
+
 // サインアウト
 export async function signOut() {
   const supabase = createSupabaseBrowserClient();
