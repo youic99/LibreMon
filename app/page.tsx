@@ -419,7 +419,18 @@ function MonsterCard({ book, stats, showAnimation }: { book: BookData; stats: Mo
   );
 }
 
+// reading_logsの型を定義
+type ReadingLog = {
+  id: string;
+  user_id: string;
+  isbn: string;
+  title: string;
+  created_at: string; // ISO形式の文字列で返ってきます
+};
+
 export default function Home() {
+  const [isFetching, setIsFetching] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [isbnInput, setIsbnInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -436,6 +447,49 @@ export default function Home() {
 
   const cleanIsbn = useMemo(() => normalizeIsbn(isbnInput), [isbnInput]);
   const isValidIsbn = cleanIsbn.length === 13;
+
+  // 1. ステートの追加
+  const [logs, setLogs] = useState<ReadingLog[]>([]);
+
+  // 2. 履歴取得関数の作成
+  const fetchLogs = useCallback(async () => {
+    // すでに取得中、またはマウント前なら何もしない（これで「スナッチ」を防ぐ）
+    if (isFetching || !isMounted) return;
+
+    setIsFetching(true); // 取得開始！
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      
+      // getUser() は重い処理なので一度だけ呼ぶ
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (currentUser) {
+        const { data, error } = await supabase
+          .from('reading_logs')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (!error && data) {
+          setLogs(data);
+        }
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setIsFetching(false); // 終わったらフラグを戻す
+    }
+  }, [isMounted, isFetching]); // 依存関係に isFetching を追加
+
+  // 3. 初回読み込み
+  useEffect(() => {
+    setIsMounted(true); // ブラウザでの準備が完了したことを記録
+    fetchLogs();
+  }, [fetchLogs]);
+
+  // 4. 召喚成功時に再取得（handleSummonの最後に追加）
+  // ... setSummoningPhase("complete"); の後などに
+  fetchLogs();
 
   const handleSummon = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -789,6 +843,32 @@ export default function Home() {
           <section className="grid gap-6 md:grid-cols-2">
             <BookInfoCard book={book} />
             <MonsterCard book={book} stats={stats} showAnimation={showAnimation} />
+          </section>
+        )}
+        {/* 読書ログセクション */}
+        {isMounted && (
+          <section className="mt-12">
+            <h2 className="mb-6 font-sans text-xl font-bold tracking-widest text-primary">
+              READING LOGS <span className="text-xs opacity-50">/ 読書記録</span>
+            </h2>
+            
+            <div className="grid gap-4">
+              {logs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">まだ記録がありません。魔導書を読み解きましょう。</p>
+              ) : (
+                logs.map((log) => (
+                  <div key={log.id} className="flex items-center justify-between border-b border-border/50 pb-3">
+                    <div>
+                      <p className="font-medium text-foreground">{log.title}</p>
+                      <p className="text-xs text-muted-foreground">ISBN: {log.isbn}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(log.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
           </section>
         )}
 

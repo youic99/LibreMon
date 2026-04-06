@@ -53,76 +53,58 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-  //   const { data, error } = await supabase
-  //     .from("ribremons")
-  //     .insert({
-  //       title,
-  //       isbn,
-  //       image_url,
-  //       stats,
-  //       user_id: user.id,
-  //     })
-  //     .select("id")
-  //     .single();
+    // 1. まず、読書ログ (reading_logs) に今回の読書を記録する
+    const { error: logError } = await supabase
+      .from("reading_logs")
+      .insert({
+        user_id: user.id,
+        isbn: isbn,
+        title: title,
+      });
 
-  //   if (error) {
-  //     return NextResponse.json({ error: error.message }, { status: 500 });
-  //   }
+    if (logError) {
+      return NextResponse.json({ error: logError.message }, { status: 500 });
+    }
 
-  //   return NextResponse.json({ id: data.id });
-  // } catch (caught) {
-  //   const message = caught instanceof Error ? caught.message : "Server error";
-  //   return NextResponse.json({ error: message }, { status: 500 });
-  // }
-  const { data: existing } = await supabase
+    // 2. 次に、既存のリブレモンがいるか確認する（進化ロジック）
+    const { data: existing } = await supabase
       .from("ribremons")
       .select("*")
       .eq("user_id", user.id)
-      .eq("isbn", isbn)
-      .maybeSingle(); // single()だとデータがない時にエラーが出るのでmaybeSingleを使います
+      .order('created_at', { ascending: true }) // 最初の一体目を取得
+      .limit(1)
+      .maybeSingle();
 
     if (existing) {
-      // 2. すでにデータがある場合は「進化（レベルアップ）」させる
+      // 進化（レベルアップ）
       const nextLevel = (existing.level || 1) + 1;
-      
       const { data: updated, error: updateError } = await supabase
         .from("ribremons")
-        .update({
-          level: nextLevel,
-          // 必要に応じてステータスを少し強化する処理をここに追加できます
-        })
+        .update({ level: nextLevel })
         .eq("id", existing.id)
         .select("id")
         .single();
 
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
-      }
-      
+      if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
       return NextResponse.json({ id: updated.id, status: "evolved", level: nextLevel });
+    } else {
+      // 新規召喚
+      const { data, error } = await supabase
+        .from("ribremons")
+        .insert({
+          title,
+          isbn,
+          image_url,
+          stats,
+          user_id: user.id,
+          level: 1,
+        })
+        .select("id")
+        .single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ id: data.id, status: "created", level: 1 });
     }
-
-    // 3. データがない場合は、これまでの通り「新規登録」を行う
-    const { data, error } = await supabase
-      .from("ribremons")
-      .insert({
-        title,
-        isbn,
-        image_url,
-        stats,
-        user_id: user.id,
-        level: 1, // 初期レベル
-      })
-      .select("id")
-      .single();
-      
-    // --- ここまで ---
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ id: data.id, status: "created" });
   }catch (caught) {
     const message = caught instanceof Error ? caught.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });
