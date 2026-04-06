@@ -27,6 +27,7 @@ type MonsterStats = {
   might: number;
   wisdom: number;
   agility: number;
+  level?: number; // ← 追加
 };
 
 const statMeta: Array<{ key: keyof MonsterStats; label: string; icon: string }> = [
@@ -330,7 +331,22 @@ function BookInfoCard({ book }: { book: BookData }) {
 // Monster Card Component
 function MonsterCard({ book, stats, showAnimation }: { book: BookData; stats: MonsterStats; showAnimation: boolean }) {
   const monsterName = useMemo(() => generateMonsterName(book), [book]);
-  const avatarSrc = useMemo(() => libreMonAvatarUrl(book.title), [book.title]);
+  const currentLevel = stats.level || 1; // デフォルトは1
+  // 
+  // レベルに応じてアバターの背景色やエフェクトを変えるための設定
+  const levelColor = currentLevel > 1 ? "text-secondary" : "text-primary";
+  const glowIntensity = Math.min(currentLevel * 5, 30); // レベルが高いほど光る
+
+  const avatarSrc = useMemo(() => {
+    const seed = book.title.trim() || "LibreMon";
+    const params = new URLSearchParams({
+      seed,
+      size: "256",
+      // レベルに応じて背景色を少しずつ変化させる遊び心
+      backgroundColor: currentLevel > 1 ? "2d1b4d" : "1a1520", 
+    });
+    return `https://api.dicebear.com/9.x/lorelei/png?${params.toString()}`;
+  }, [book.title, currentLevel]);
 
   return (
     <GothicFrame className={`rounded-lg border border-secondary/50 bg-gradient-to-b from-card to-background p-6 ${showAnimation ? 'animate-reveal-monster' : ''}`}>
@@ -343,35 +359,30 @@ function MonsterCard({ book, stats, showAnimation }: { book: BookData; stats: Mo
             </svg>
           </div>
           <div>
-            <p className="font-sans text-xs tracking-[0.3em] text-muted-foreground">SUMMONED LIBREMON</p>
-            <p className="font-sans text-lg font-semibold text-secondary">{monsterName}</p>
+            <p className="font-sans text-xs tracking-[0.3em] text-muted-foreground">
+              {currentLevel > 1 ? `EVOLVED LIBREMON` : `SUMMONED LIBREMON`}
+            </p>
+            <p className={`font-sans text-lg font-semibold ${levelColor}`}>
+              {monsterName} <span className="ml-2 text-sm opacity-80">Lv.{currentLevel}</span>
+            </p>
           </div>
         </div>
       </div>
       
-      {/* Monster Display Area */}
+      {/* モンスター表示エリア：レベルが高いと光を強くする */}
       <div className="relative mb-6 overflow-hidden rounded-lg border border-border bg-background/50 py-12">
-        {/* Background magic circle */}
         <div className="absolute inset-0 flex items-center justify-center opacity-20">
-          <MagicCircle className="h-64 w-64 text-secondary" />
+          <MagicCircle className={`h-64 w-64 ${levelColor}`} />
         </div>
         
-        {/* LibreMon portrait (DiceBear HTTP API, seed = book title) */}
         <div className="relative flex flex-col items-center justify-center">
-          <div className="relative mb-4 h-40 w-40 overflow-hidden rounded-full border-2 border-secondary/50 bg-gradient-to-b from-secondary/20 to-transparent shadow-[0_0_24px_rgba(201,169,98,0.15)] animate-glow-pulse">
-            <Image
-              src={avatarSrc}
-              alt={`リブルモン: ${book.title}`}
-              width={256}
-              height={256}
-              className="h-full w-full object-cover object-center"
-              unoptimized
-            />
+          <div 
+            className="relative mb-4 h-40 w-40 overflow-hidden rounded-full border-2 border-secondary/50 shadow-lg animate-glow-pulse"
+            style={{ boxShadow: `0 0 ${glowIntensity}px rgba(201,169,98,0.5)` }}
+          >
+            <Image src={avatarSrc} alt={monsterName} width={256} height={256} unoptimized />
           </div>
-          <p className="font-sans text-xs tracking-[0.2em] text-muted-foreground">MANIFESTATION COMPLETE</p>
         </div>
-        
-        <SummonParticles active={showAnimation} />
       </div>
       
       {/* Stats */}
@@ -483,14 +494,32 @@ export default function Home() {
         }),
       });
 
-      if (saveRes.ok) {
+      const saveResult = await saveRes.json();
+
+      // 進化した場合、APIから返ってきたレベルを反映させる
+      const finalStats = {
+        ...monsterStats,
+        level: saveResult.level || 1 // APIが返したレベルを使う
+      };
+
+      setBook(parsed);
+      setStats(finalStats); // ここでレベル入りのステータスをセット
+      setSummoningPhase("complete");
+
+      if (saveResult.status === "evolved") {
+        setCatalogToast(`リブレモンが Lv.${saveResult.level} に進化しました！`);
+      } else {
         setCatalogToast("図鑑に登録されました！");
-        if (catalogToastTimer.current) clearTimeout(catalogToastTimer.current);
-        catalogToastTimer.current = setTimeout(() => {
-          setCatalogToast(null);
-          catalogToastTimer.current = null;
-        }, 4500);
       }
+
+      // if (saveRes.ok) {
+      //   setCatalogToast("図鑑に登録されました！");
+      //   if (catalogToastTimer.current) clearTimeout(catalogToastTimer.current);
+      //   catalogToastTimer.current = setTimeout(() => {
+      //     setCatalogToast(null);
+      //     catalogToastTimer.current = null;
+      //   }, 4500);
+      // }
 
       // Reset animation flag after animation completes
       setTimeout(() => setShowAnimation(false), 1500);

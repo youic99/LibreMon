@@ -53,6 +53,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+  //   const { data, error } = await supabase
+  //     .from("ribremons")
+  //     .insert({
+  //       title,
+  //       isbn,
+  //       image_url,
+  //       stats,
+  //       user_id: user.id,
+  //     })
+  //     .select("id")
+  //     .single();
+
+  //   if (error) {
+  //     return NextResponse.json({ error: error.message }, { status: 500 });
+  //   }
+
+  //   return NextResponse.json({ id: data.id });
+  // } catch (caught) {
+  //   const message = caught instanceof Error ? caught.message : "Server error";
+  //   return NextResponse.json({ error: message }, { status: 500 });
+  // }
+  const { data: existing } = await supabase
+      .from("ribremons")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("isbn", isbn)
+      .maybeSingle(); // single()だとデータがない時にエラーが出るのでmaybeSingleを使います
+
+    if (existing) {
+      // 2. すでにデータがある場合は「進化（レベルアップ）」させる
+      const nextLevel = (existing.level || 1) + 1;
+      
+      const { data: updated, error: updateError } = await supabase
+        .from("ribremons")
+        .update({
+          level: nextLevel,
+          // 必要に応じてステータスを少し強化する処理をここに追加できます
+        })
+        .eq("id", existing.id)
+        .select("id")
+        .single();
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+      
+      return NextResponse.json({ id: updated.id, status: "evolved", level: nextLevel });
+    }
+
+    // 3. データがない場合は、これまでの通り「新規登録」を行う
     const { data, error } = await supabase
       .from("ribremons")
       .insert({
@@ -61,16 +111,19 @@ export async function POST(request: Request) {
         image_url,
         stats,
         user_id: user.id,
+        level: 1, // 初期レベル
       })
       .select("id")
       .single();
+      
+    // --- ここまで ---
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ id: data.id });
-  } catch (caught) {
+    return NextResponse.json({ id: data.id, status: "created" });
+  }catch (caught) {
     const message = caught instanceof Error ? caught.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
