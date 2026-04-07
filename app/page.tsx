@@ -460,7 +460,8 @@ export default function Home() {
     if (!isMounted) return; // isFetching のチェックを外してシンプルに
 
     const supabase = createSupabaseBrowserClient();
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUser = session?.user;
     
     if (currentUser) {
       const { data, error } = await supabase
@@ -533,6 +534,12 @@ export default function Home() {
 
       const saveResult = await saveRes.json();
 
+      // 1. DBへの反映を確実に待つための待機
+      await new Promise((resolve) => setTimeout(resolve, 800)); 
+
+      // 2. 最新のログ（全件）を再取得。これで combinedSeed が更新される。
+      await fetchLogs();
+
       // 進化した場合、APIから返ってきたレベルを反映させる
       const finalStats = {
         ...monsterStats,
@@ -542,6 +549,7 @@ export default function Home() {
       setBook(parsed);
       setStats(finalStats); // ここでレベル入りのステータスをセット
       setSummoningPhase("complete");
+      setShowAnimation(true);
 
       if (saveResult.status === "evolved") {
         setCatalogToast(`リブレモンが Lv.${saveResult.level} に進化しました！`);
@@ -549,14 +557,7 @@ export default function Home() {
         setCatalogToast("図鑑に登録されました！");
       }
 
-      // if (saveRes.ok) {
-      //   setCatalogToast("図鑑に登録されました！");
-      //   if (catalogToastTimer.current) clearTimeout(catalogToastTimer.current);
-      //   catalogToastTimer.current = setTimeout(() => {
-      //     setCatalogToast(null);
-      //     catalogToastTimer.current = null;
-      //   }, 4500);
-      // }
+      setTimeout(() => setShowAnimation(false), 1500);
 
       // Reset animation flag after animation completes
       setTimeout(() => setShowAnimation(false), 1500);
@@ -566,7 +567,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [cleanIsbn, isValidIsbn]);
+  }, [cleanIsbn, isValidIsbn, fetchLogs]);
 
   useEffect(() => {
     setIsMounted(true);
