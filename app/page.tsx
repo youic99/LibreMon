@@ -900,7 +900,7 @@ export default function Home() {
             POWERED BY NATIONAL DIET LIBRARY API
           </p>
         </footer>
-        <div>
+        {/* <div>
           <p>スプーキーズ採用担当者様へ。このアプリは「LibreMon(リブレモン)」という読書管理アプリです。魔導書から魔物（リブレモン）を召喚するというコンセプトで、国立国会図書館のAPIを利用してISBNコードから書籍情報を取得し、ユーザーだけの魔物を生成することができます。リブレモンの画像生成はOpenAIのAPIを利用する予定でしたが、有料であったために断念してDiceBearのAPIを利用しています。将来的には、ユーザーが新しく読んだ書籍に応じてリブレモンが進化していき、リブレモンを通じて趣味の合うユーザー同士がコミュニケーションを取れるアプリになる予定です。データベースとしてsupabaseに接続するところまで成功し、生成されたリブレモンのデータが保存されるようになっていますが、認証機能の実装が未実装のため、保存されたデータを表示することができておりません。採用担当者様におかれましては、私のアプリ開発に対する熱意と独創性を評価していただけたら嬉しく思います。</p>
           <br />
           <p>リブレモンを召喚するためのISBNコードの例を以下に示します。</p>
@@ -908,7 +908,48 @@ export default function Home() {
           <p>9784883377800（Android アプリ サンプルプログラム大全）</p>
           <p>9784873116303（Team Geek ―Googleのギークたちはいかにしてチームを作るのか）</p>
           <p>9784873115658（リーダブルコード ―より良いコードを書くためのシンプルで実践的なテクニック）</p>
-        </div>
+        </div> */}
+        <section className="mt-16 p-6 border-t border-primary/20 bg-card/50 rounded-lg text-card-foreground">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span className="text-primary">✉️</span> スプーキーズ採用担当者様へ
+          </h2>
+          
+          <div className="space-y-4 text-sm leading-relaxed">
+            <p>
+              このアプリは、読書履歴を魔物として具現化する読書管理アプリ<strong className="text-primary">「LibreMon（リブレモン）」</strong>です。
+            </p>
+
+            <div className="space-y-2">
+              <h3 className="font-bold border-b border-primary/10 pb-1">【現在の実装機能とこだわり】</h3>
+              <ul className="list-disc ml-5 space-y-1">
+                <li><strong>召喚システム</strong>: 国立国会図書館APIと連携し、ISBNコードから書籍情報を取得。独自のアルゴリズムでステータスを生成します。</li>
+                <li><strong>進化する相棒</strong>: 読んだ本のタイトルを結合して画像生成シードを動的に生成（DiceBear API）。<strong>読めば読むほど、あなただけの相棒がその姿を変えていきます。</strong></li>
+                <li><strong>シームレスな体験</strong>: 採用担当者様にすぐ体験していただけるよう、<strong>匿名認証（Anonymous Auth）</strong>を実装しました。ログインなしでも、履歴の保存や進化のプロセスをフルに体験いただけます。</li>
+                <li><strong>データの永続化</strong>: Supabaseを活用し、リロードしてもデータが保持されるリアルタイムな同期を実現しました。</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-bold border-b border-primary/10 pb-1">【開発の裏側】</h3>
+              <p>
+                開発中、Reactのライフサイクルに起因する無限ループや非同期処理の競合といった技術的課題に直面しましたが、Gitを活用したバージョン管理や、依存関係の厳密な整理（useCallback/useMemo）を行うことで、安定した動作を構築することができました。
+              </p>
+            </div>
+
+            <p className="bg-primary/5 p-3 rounded italic">
+              将来的には、リブレモンの姿を通じて「感性の合うユーザー」をマッチングするSNS機能の実装を目指しています。未完成だった一次面接時から、<strong>「課題を特定し、自力で解決して進化させる」</strong>プロセスを積み重ねたこのアプリを、ぜひ楽しんでいただければ幸いです。
+            </p>
+
+            <div className="mt-4 pt-4 border-t border-dashed border-muted-foreground/20">
+              <p className="font-bold mb-2">召喚用ISBNコード例：</p>
+              <ul className="font-mono text-xs space-y-1 opacity-80">
+                <li>9784883377800（Android アプリ サンプルプログラム大全）</li>
+                <li>9784873116303（Team Geek ―Googleのギークたちはいかにしてチームを作るのか）</li>
+                <li>9784873115658（リーダブルコード ―より良いコードを書くための実践的なテクニック）</li>
+              </ul>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
