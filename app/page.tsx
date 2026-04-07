@@ -475,6 +475,38 @@ export default function Home() {
     }
   }, [isMounted]); // 依存関係は isMounted だけでOK
 
+  const fetchRibremon = useCallback(async () => {
+    const supabase = createSupabaseBrowserClient();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    if (currentUser) {
+      const { data, error } = await supabase
+        .from('ribremons')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: true }) // 最初の一体目を取得
+        .limit(1)
+        .maybeSingle();
+
+      if (data && !error) {
+        // 画面に表示するためのステートを更新
+        setBook({
+          title: data.title,
+          author: "", // 必要であればDBの設計に合わせて調整
+          ndc: ""
+        });
+        setStats({
+          mana: data.stats.mana,
+          might: data.stats.might,
+          wisdom: data.stats.wisdom,
+          agility: data.stats.agility,
+          level: data.level || 1
+        });
+        setSummoningPhase('complete'); // 召喚完了状態にする
+      }
+    }
+  }, []);
+
   const handleSummon = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -574,18 +606,29 @@ export default function Home() {
     
     // マウント時に一度だけ実行
     fetchLogs();
+    fetchRibremon();
 
     const supabase = createSupabaseBrowserClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
       if (session?.user) {
-        fetchLogs(); // ログイン状態が変わった時だけ再取得
+        fetchLogs();
+        fetchRibremon(); // ログイン状態が変わった時だけ再取得
+      } else  {
+        setBook(null);
+        setStats(null);
+        setSummoningPhase('idle');
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [fetchLogs]); // fetchLogs は stable なので初回だけ実行されます
+    return () => {
+      subscription.unsubscribe(); // 認証監視の解除
+      if (catalogToastTimer.current) {
+        clearTimeout(catalogToastTimer.current); // トースト用タイマーの解除
+      }
+    };
+  }, [fetchLogs, fetchRibremon]); // fetchLogs は stable なので初回だけ実行されます
 
   // ログイン処理
   const handleSignIn = useCallback(async (email: string, password: string) => {
@@ -638,11 +681,11 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (catalogToastTimer.current) clearTimeout(catalogToastTimer.current);
-    };
-  }, []);
+  // useEffect(() => {
+  //   return () => {
+  //     if (catalogToastTimer.current) clearTimeout(catalogToastTimer.current);
+  //   };
+  // }, []);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background">
