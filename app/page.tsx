@@ -329,7 +329,7 @@ function BookInfoCard({ book }: { book: BookData }) {
 }
 
 // Monster Card Component
-function MonsterCard({ book, stats, showAnimation }: { book: BookData; stats: MonsterStats; showAnimation: boolean }) {
+function MonsterCard({ book, stats, showAnimation, combinedSeed }: { book: BookData; stats: MonsterStats; showAnimation: boolean; combinedSeed: string }) {
   const monsterName = useMemo(() => generateMonsterName(book), [book]);
   const currentLevel = stats.level || 1; // デフォルトは1
   // 
@@ -338,15 +338,13 @@ function MonsterCard({ book, stats, showAnimation }: { book: BookData; stats: Mo
   const glowIntensity = Math.min(currentLevel * 5, 30); // レベルが高いほど光る
 
   const avatarSrc = useMemo(() => {
-    const seed = book.title.trim() || "LibreMon";
     const params = new URLSearchParams({
-      seed,
+      seed: combinedSeed, // 🌟 ここを combinedSeed に変える！
       size: "256",
-      // レベルに応じて背景色を少しずつ変化させる遊び心
-      backgroundColor: currentLevel > 1 ? "2d1b4d" : "1a1520", 
+      backgroundColor: "1a1520",
     });
     return `https://api.dicebear.com/9.x/lorelei/png?${params.toString()}`;
-  }, [book.title, currentLevel]);
+  }, [combinedSeed]);
 
   return (
     <GothicFrame className={`rounded-lg border border-secondary/50 bg-gradient-to-b from-card to-background p-6 ${showAnimation ? 'animate-reveal-monster' : ''}`}>
@@ -451,45 +449,30 @@ export default function Home() {
   // 1. ステートの追加
   const [logs, setLogs] = useState<ReadingLog[]>([]);
 
-  // 2. 履歴取得関数の作成
+  // page.tsx の Home 関数内、useStateたちのすぐ下あたり
+  const combinedSeed = useMemo(() => {
+    if (logs.length === 0) return "LibreMon";
+    // 読んだ本のタイトルを全部つなげてシードにする
+    return logs.map(log => log.title.trim()).join("");
+  }, [logs]);
+
   const fetchLogs = useCallback(async () => {
-    // すでに取得中、またはマウント前なら何もしない（これで「スナッチ」を防ぐ）
-    if (isFetching || !isMounted) return;
+    if (!isMounted) return; // isFetching のチェックを外してシンプルに
 
-    setIsFetching(true); // 取得開始！
-
-    try {
-      const supabase = createSupabaseBrowserClient();
+    const supabase = createSupabaseBrowserClient();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    
+    if (currentUser) {
+      const { data, error } = await supabase
+        .from('reading_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      // getUser() は重い処理なので一度だけ呼ぶ
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      if (currentUser) {
-        const { data, error } = await supabase
-          .from('reading_logs')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (!error && data) {
-          setLogs(data);
-        }
+      if (!error && data) {
+        setLogs(data);
       }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setIsFetching(false); // 終わったらフラグを戻す
     }
-  }, [isMounted, isFetching]); // 依存関係に isFetching を追加
-
-  // 3. 初回読み込み
-  useEffect(() => {
-    setIsMounted(true); // ブラウザでの準備が完了したことを記録
-    fetchLogs();
-  }, [fetchLogs]);
-
-  // 4. 召喚成功時に再取得（handleSummonの最後に追加）
-  // ... setSummoningPhase("complete"); の後などに
-  fetchLogs();
+  }, [isMounted]); // 依存関係は isMounted だけでOK
 
   const handleSummon = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -585,29 +568,23 @@ export default function Home() {
     }
   }, [cleanIsbn, isValidIsbn]);
 
-  // 認証状態の監視
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
+    setIsMounted(true);
     
-    // 初期状態の取得
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    // マウント時に一度だけ実行
+    fetchLogs();
+
+    const supabase = createSupabaseBrowserClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
-    };
-    
-    getInitialSession();
-
-    // 認証状態の変更を監視
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null);
-        setAuthLoading(false);
+      if (session?.user) {
+        fetchLogs(); // ログイン状態が変わった時だけ再取得
       }
-    );
+    });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchLogs]); // fetchLogs は stable なので初回だけ実行されます
 
   // ログイン処理
   const handleSignIn = useCallback(async (email: string, password: string) => {
@@ -842,7 +819,7 @@ export default function Home() {
         {book && stats && summoningPhase === 'complete' && (
           <section className="grid gap-6 md:grid-cols-2">
             <BookInfoCard book={book} />
-            <MonsterCard book={book} stats={stats} showAnimation={showAnimation} />
+            <MonsterCard book={book} stats={stats} showAnimation={showAnimation} combinedSeed={combinedSeed} />
           </section>
         )}
         {/* 読書ログセクション */}
